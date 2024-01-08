@@ -2,13 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const XLSX = require('xlsx');
-
 const app = express();
 const port = 3000;
 
 // Connect to MongoDB
 async function connected(){
-await mongoose.connect('mongodb://127.0.0.1:27017/your_database_name'); 
+    await mongoose.connect('mongodb+srv://infosarthaktech:bsrM4Shla9cnnFmr@cluster0.mkoefd2.mongodb.net/carpet'); 
 
 }
 
@@ -16,54 +15,93 @@ connected();
 
 console.log("db connected");
 
-const challanSchema = new mongoose.Schema({
-  'Challan no': Number,
-  'rg_dat': String,
-  'kode': String,
-  'anr': Number,
-  'asd': String
+const ChallanSchema = new mongoose.Schema({
+  
+  challanNo: { type: Number, required: true, unique: true },
+  challanDate:{type:Date,require},
+  optCustomer:{type:String, require:true},
+  carpetList:[
+      {
+          qualityDesign: { type: String, require: true },
+          qualityCode: { type: String, require: true },
+          colour: { type: String, require: true },
+          colourCode: { type: String, require: true },
+          size: { type: String, require: true },
+          sizeCode: { type: String, require: true },
+          area: { type: String, require: true },
+          rate:{ type: String, require: true },
+          evkPrice: { type: String, require: true },
+          barCode: { type: String, require: true },
+          returnStatus:{type:Boolean,default:false}
+        },
+  ]
 });
 
 console.log("Challan schema created");
 
-const Challan = mongoose.model('Challan', challanSchema); // 'challans' is the collection name
+const Challan = mongoose.model('Challan', ChallanSchema); 
 
-// Set up Multer for file upload
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Handle Excel upload and data insertion
+
+
+
 app.post('/upload', upload.single('excelFile'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).send('No file uploaded');
     }
 
-    // Read and convert Excel data to JSON
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-
-    console.log(sheetName);
-
     const worksheet = workbook.Sheets[sheetName];
+    const rawData = XLSX.utils.sheet_to_json(worksheet);
 
-    console.log(worksheet);
+  
+    const groupedData = {};
 
-    const data = XLSX.utils.sheet_to_json(worksheet);
+    rawData.forEach((row) => {
+      const { challanNo, challanDate, optCustomer, barCode, saleStatus } = row;
 
-    console.log(data);
+      if (!groupedData[challanNo]) {
 
-    // Insert data into MongoDB
-    await Challan.insertMany(data);
+        groupedData[challanNo] = {
+          challanNo: parseInt(challanNo),
+          challanDate: new Date(challanDate),
+          optCustomer,
+          carpetList: [],
+        };
+      }
 
-    res.status(200).send('Data inserted successfully');
+      groupedData[challanNo].carpetList.push({
+        qualityDesign: null,
+        qualityCode: null,
+        colour: null,
+        colourCode: null,
+        size: null,
+        sizeCode: null,
+        area: null,
+        rate: null,
+        evkPrice: null,
+        barCode,
+        returnStatus: saleStatus === 'negative', 
+      });
+    });
+
+    const dataToInsert = Object.values(groupedData);
+
+
+    await Challan.insertMany(dataToInsert);
+
+    res.status(200).send(dataToInsert);
   } catch (error) {
     console.error('Error:', error.message);
     res.status(500).send(`Error inserting data: ${error.message}`);
   }
 });
 
-// Start the server
+
 app.listen(port, () => {
   console.log(`Server started on http://localhost:${port}`);
 });
