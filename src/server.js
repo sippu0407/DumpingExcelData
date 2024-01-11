@@ -92,7 +92,7 @@ app.post('/upload', upload.single('excelFile'), async (req, res) => {
     const dataToInsert = Object.values(groupedData);
 
 
-    await Challan.insertMany(dataToInsert);
+    await NewSaleBill.insertMany(dataToInsert);
 
     res.status(200).send(dataToInsert);
   } catch (error) {
