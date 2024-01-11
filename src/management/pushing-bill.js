@@ -20,23 +20,22 @@ app.patch('/update-date', upload.single('excelFile'), async (req, res) => {
   const sheetName = workbook.SheetNames[0];
  const worksheet = workbook.Sheets[sheetName];
  const excelData = XLSX.utils.sheet_to_json(worksheet);
-    
+   let i=1; 
 excelData.forEach(async (row) => {
-     const billNo = row['Bill No'];
-    const dateStr = row['Bill Date'];
-    const [day, month, year] = (""+dateStr).split('/'); // Assuming date format is "DD/MM/YYYY"
-    
-    // Format date string to "YYYY-MM-DD" format
-    const formattedDateStr = `${year}-${month}-${day}`;
-    
-    // Convert formatted date string to JavaScript Date object
-    const billDate = new Date(formattedDateStr);
+  
+   const billNo = row['Bill No'];
+   const dateValue = row['Bill Date']; // Assuming it's a number
 
-    // Update the 'billDate' field in MongoDB collection for the matching 'Bill No'
-    await NewSaleBill.updateOne({ billNo: billNo }, { $set: { billDate: billDate } });
+// Convert Excel date number to JavaScript Date object
+   const billDate = new Date((dateValue - (25567 + 1)) * 86400 * 1000); // Convert Excel number to JavaScript timestamp
+
+  
+   await NewSaleBill.updateOne({ billNo: billNo }, { $set: { billDate: billDate } });
     
-    console.log(`Updated Bill No ${billNo} with new Bill Date: ${billDate}`);
+    console.log(`Updated Bill No ${billNo} with new Bill Date: ${billDate} ${i++}`);
   });
+
+  res.send("done");
 }    catch (error) {
     console.error(`Error updating Bill No ${row['Bill No']}: ${error.message}`);
   }
